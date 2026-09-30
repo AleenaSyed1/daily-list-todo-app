@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Daily List — To-Do App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+
+  /* ============ Design tokens ============ */
+  :root{
+    --paper: #F6F1E4;
+    --paper-line: #DED2B8;
+    --card: #FFFDF8;
+    --margin: #C1443C;
+    --ink: #2B2620;
+    --ink-muted: #8A8070;
+    --done: #6B8F71;
+    --done-soft: #E4ECE3;
+    --danger: #C1443C;
+    --danger-soft: #F6DEDB;
+    --accent2: #3E6E88;
+
+    --font-display: 'Fraunces', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--paper);
+    background-image:
+      repeating-linear-gradient(
+        transparent 0, transparent 42px,
+        var(--paper-line) 42px, var(--paper-line) 43px
+      );
+    background-position: 0 190px;
+    font-family:var(--font-body);
+    color:var(--ink);
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:64px 20px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+  }
+
+  /* ============ Ledger card ============ */
+  .ledger{
+    width:100%;
+    max-width:520px;
+    background:var(--card);
+    border-radius:6px;
+    box-shadow:
+      0 1px 0 rgba(43,38,32,0.04),
+      0 30px 60px -30px rgba(43,38,32,0.35);
+    position:relative;
+    overflow:hidden;
+  }
+
+  .spiral{
+    display:flex;
+    justify-content:space-evenly;
+    padding:14px 28px 0;
+    background:var(--card);
+  }
+  .spiral span{
+    width:12px; height:12px;
+    border-radius:50%;
+    background:var(--paper);
+    border:2px solid var(--paper-line);
+  }
+
+  .ledger-body{
+    padding:12px 36px 32px 56px;
+    position:relative;
+  }
+
+  .ledger-body::before{
+    content:'';
+    position:absolute;
+    top:0; bottom:0; left:34px;
+    width:1.5px;
+    background:var(--margin);
+    opacity:.55;
+  }
+
+  header.ledger-header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    padding:18px 0 18px;
+  }
+  .ledger-header h1{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:1.9rem;
+    margin:0 0 4px;
+    letter-spacing:-0.01em;
+  }
+  .ledger-header p{
+    margin:0;
+    font-family:var(--font-mono);
+    font-size:.78rem;
+    color:var(--ink-muted);
+  }
+
+  /* download / export button up top */
+  .icon-btn{
+    flex-shrink:0;
+    width:38px; height:38px;
+    border-radius:8px;
+    border:1.4px solid var(--paper-line);
+    background:transparent;
+    color:var(--ink-muted);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    transition:border-color .2s ease, color .2s ease, background-color .2s ease, transform .2s ease;
+  }
+  .icon-btn:hover{ border-color:var(--accent2); color:var(--accent2); transform:translateY(-2px); }
+  .icon-btn svg{ width:17px; height:17px; }
+
+  /* ============ Progress bar ============ */
+  .progress-wrap{
+    height:6px;
+    border-radius:4px;
+    background:var(--paper-line);
+    overflow:hidden;
+    margin-bottom:20px;
+  }
+  .progress-bar{
+    height:100%;
+    width:0%;
+    background:var(--done);
+    border-radius:4px;
+    transition:width .35s ease;
+  }
+
+  /* ============ Input row ============ */
+  .add-row{
+    display:flex;
+    gap:10px;
+    margin-bottom:16px;
+  }
+  #taskInput{
+    flex:1;
+    border:none;
+    border-bottom:1.5px solid var(--paper-line);
+    background:transparent;
+    font-family:var(--font-body);
+    font-size:1rem;
+    color:var(--ink);
+    padding:10px 4px;
+    outline:none;
+    transition:border-color .25s ease;
+  }
+  #taskInput::placeholder{ color:var(--ink-muted); }
+  #taskInput:focus{ border-color:var(--margin); }
+
+  #addBtn{
+    display:flex; align-items:center; gap:6px;
+    background:var(--ink);
+    color:var(--card);
+    border:none;
+    border-radius:8px;
+    padding:0 18px;
+    font-family:var(--font-body);
+    font-weight:600;
+    font-size:.92rem;
+    cursor:pointer;
+    transition:transform .2s ease, background-color .2s ease;
+  }
+  #addBtn:hover{ transform:translateY(-2px); background:#443c30; }
+  #addBtn:active{ transform:translateY(0); }
+  #addBtn svg{ width:16px; height:16px; }
+
+  /* ============ Filter tabs ============ */
+  .filters{
+    display:flex;
+    gap:4px;
+    margin-bottom:6px;
+  }
+  .filter-btn{
+    background:none;
+    border:none;
+    font-family:var(--font-mono);
+    font-size:.76rem;
+    color:var(--ink-muted);
+    padding:6px 12px;
+    border-radius:20px;
+    cursor:pointer;
+    transition:background-color .2s ease, color .2s ease;
+  }
+  .filter-btn:hover{ color:var(--ink); }
+  .filter-btn.active{ background:var(--ink); color:var(--card); }
+
+  /* ============ Task list ============ */
+  #taskList{
+    list-style:none;
+    margin:12px 0 0;
+    padding:0;
+  }
+
+  .task{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    padding:12px 0;
+    border-bottom:1px solid var(--paper-line);
+    animation:slideIn .3s ease;
+  }
+  @keyframes slideIn{
+    from{ opacity:0; transform:translateX(-8px); }
+    to{ opacity:1; transform:none; }
+  }
+  .task.removing{
+    animation:slideOut .22s ease forwards;
+  }
+  @keyframes slideOut{
+    to{ opacity:0; transform:translateX(12px); height:0; padding:0; margin:0; border:0; }
+  }
+
+  .check{
+    flex-shrink:0;
+    width:22px; height:22px;
+    margin-top:1px;
+    border:1.6px solid var(--ink-muted);
+    border-radius:5px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    transition:border-color .2s ease, background-color .2s ease;
+  }
+  .check svg{
+    width:13px; height:13px;
+    stroke:var(--card);
+    fill:none;
+    stroke-width:3;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    stroke-dasharray:20;
+    stroke-dashoffset:20;
+    transition:stroke-dashoffset .25s ease;
+  }
+  .task.done .check{
+    background:var(--done);
+    border-color:var(--done);
+  }
+  .task.done .check svg{ stroke-dashoffset:0; }
+
+  .task-text{
+    flex:1;
+    font-size:.98rem;
+    line-height:1.5;
+    padding-top:1px;
+    word-break:break-word;
+    transition:color .2s ease;
+    cursor:text;
+  }
+  .task.done .task-text{
+    color:var(--ink-muted);
+    text-decoration:line-through;
+    text-decoration-color:var(--ink-muted);
+  }
+  .task-edit-input{
+    flex:1;
+    font-family:inherit;
+    font-size:.98rem;
+    color:var(--ink);
+    background:var(--done-soft);
+    border:1px solid var(--done);
+    border-radius:5px;
+    padding:4px 8px;
+    outline:none;
+  }
+
+  .delete-btn{
+    flex-shrink:0;
+    width:26px; height:26px;
+    border:none;
+    background:transparent;
+    color:var(--ink-muted);
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    opacity:0;
+    transition:opacity .2s ease, background-color .2s ease, color .2s ease;
+  }
+  .task:hover .delete-btn,
+  .delete-btn:focus-visible{ opacity:1; }
+  .delete-btn:hover{ background:var(--danger-soft); color:var(--danger); }
+  .delete-btn svg{ width:14px; height:14px; }
+
+  /* ============ Empty state ============ */
+  .empty-state{
+    padding:30px 0 10px;
+    text-align:center;
+    color:var(--ink-muted);
+    font-size:.92rem;
+    display:none;
+  }
+  .empty-state.show{ display:block; }
+
+  /* ============ Footer row ============ */
+  .ledger-footer{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:18px;
+    padding-top:14px;
+    border-top:1px dashed var(--paper-line);
+    font-family:var(--font-mono);
+    font-size:.78rem;
+    color:var(--ink-muted);
+  }
+  #clearCompleted{
+    background:none;
+    border:none;
+    font-family:inherit;
+    font-size:inherit;
+    color:var(--ink-muted);
+    cursor:pointer;
+    text-decoration:underline;
+    text-underline-offset:2px;
+    transition:color .2s ease;
+  }
+  #clearCompleted:hover{ color:var(--danger); }
+
+  /* ============ Toast ============ */
+  .toast{
+    position:fixed;
+    left:50%;
+    bottom:28px;
+    transform:translate(-50%, 14px);
+    background:var(--ink);
+    color:var(--card);
+    font-size:.86rem;
+    padding:11px 20px;
+    border-radius:8px;
+    box-shadow:0 12px 30px -10px rgba(0,0,0,.5);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  a:focus-visible, button:focus-visible, input:focus-visible, .check:focus-visible{
+    outline:2px solid var(--margin);
+    outline-offset:2px;
+  }
+
+  @media (max-width:480px){
+    body{ padding:36px 14px; }
+    .ledger-body{ padding:12px 20px 28px 42px; }
+    .ledger-body::before{ left:22px; }
+    .ledger-header h1{ font-size:1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ledger">
+  <div class="spiral" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+
+  <div class="ledger-body">
+    <header class="ledger-header">
+      <div>
+        <h1>The Daily List</h1>
+        <p id="todayDate"></p>
+      </div>
+      <button type="button" class="icon-btn" id="downloadBtn" title="Download list as a text file" aria-label="Download task list">
+        <svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+
+    <div class="progress-wrap" aria-hidden="true">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <form class="add-row" id="addForm">
+      <input type="text" id="taskInput" placeholder="What needs to get done?" autocomplete="off" maxlength="140">
+      <button type="submit" id="addBtn">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        Add
+      </button>
+    </form>
+
+    <div class="filters" role="tablist" aria-label="Filter tasks">
+      <button type="button" class="filter-btn active" data-filter="all">All</button>
+      <button type="button" class="filter-btn" data-filter="active">Active</button>
+      <button type="button" class="filter-btn" data-filter="completed">Completed</button>
+    </div>
+
+    <ul id="taskList"></ul>
+
+    <p class="empty-state" id="emptyState">Nothing here — add your first task above.</p>
+
+    <div class="ledger-footer">
+      <span id="taskCount">0 tasks left</span>
+      <button type="button" id="clearCompleted">Clear completed</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Config ---------- */
+  const STORAGE_KEY = 'daily-list.tasks.v1';
+
+  /* ---------- Element refs ---------- */
+  const form        = document.getElementById('addForm');
+  const input       = document.getElementById('taskInput');
+  const list        = document.getElementById('taskList');
+  const emptyState  = document.getElementById('emptyState');
+  const taskCountEl = document.getElementById('taskCount');
+  const clearBtn    = document.getElementById('clearCompleted');
+  const dateEl      = document.getElementById('todayDate');
+  const progressBar = document.getElementById('progressBar');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const filterBtns  = document.querySelectorAll('.filter-btn');
+  const toastEl     = document.getElementById('toast');
+
+  /* ---------- State ----------
+     Each task looks like: { id, text, done }
+     The whole array is saved to localStorage every time it changes,
+     so tasks survive a refresh or the browser being closed.
+  */
+  let tasks = loadTasks();
+  let filter = 'all'; // 'all' | 'active' | 'completed'
+  let toastTimer = null;
+
+  /* ---------- Init ---------- */
+  dateEl.textContent = new Date().toLocaleDateString(undefined, {
+    weekday: 'long', month: 'long', day: 'numeric'
+  });
+  render();
+
+  /* ---------- Storage helpers ---------- */
+  function loadTasks() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (err) {
+      console.error('Could not read saved tasks:', err);
+      return [];
+    }
+  }
+
+  function saveTasks() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    } catch (err) {
+      console.error('Could not save tasks:', err);
+    }
+  }
+
+  /* ---------- Toast feedback ---------- */
+  function showToast(message) {
+    toastEl.textContent = message;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
+  }
+
+  /* ---------- Actions ---------- */
+  function addTask(text) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    tasks.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      text: trimmed,
+      done: false
+    });
+
+    saveTasks();
+    render();
+    showToast('Task added');
+  }
+
+  function toggleTask(id) {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    task.done = !task.done;
+    saveTasks();
+    render();
+  }
+
+  function editTask(id, newText) {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    const trimmed = newText.trim();
+    if (!trimmed) {
+      deleteTask(id);
+      return;
+    }
+    task.text = trimmed;
+    saveTasks();
+    render();
+  }
+
+  function deleteTask(id) {
+    const row = list.querySelector(`[data-id="${id}"]`);
+    if (row) {
+      row.classList.add('removing');
+      row.addEventListener('animationend', () => {
+        tasks = tasks.filter(t => t.id !== id);
+        saveTasks();
+        render();
+      }, { once: true });
+    } else {
+      tasks = tasks.filter(t => t.id !== id);
+      saveTasks();
+      render();
+    }
+    showToast('Task deleted');
+  }
+
+  function clearCompleted() {
+    tasks = tasks.filter(t => !t.done);
+    saveTasks();
+    render();
+    showToast('Completed tasks cleared');
+  }
+
+  /* ---------- Export / instant download ----------
+     Builds a plain-text version of the list and triggers a browser
+     download immediately — no server or extra click needed beyond
+     pressing the download icon.
+  */
+  function downloadList() {
+    if (tasks.length === 0) {
+      showToast('Nothing to download yet');
+      return;
+    }
+
+    const stamp = new Date().toLocaleString();
+    const lines = [
+      'THE DAILY LIST',
+      `Exported: ${stamp}`,
+      ''.padEnd(30, '-'),
+      '',
+      ...tasks.map(t => `[${t.done ? 'x' : ' '}] ${t.text}`)
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `daily-list-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    showToast('List downloaded');
+  }
+
+  /* ---------- Rendering ---------- */
+  function getVisibleTasks() {
+    if (filter === 'active') return tasks.filter(t => !t.done);
+    if (filter === 'completed') return tasks.filter(t => t.done);
+    return tasks;
+  }
+
+  function render() {
+    list.innerHTML = '';
+    const visible = getVisibleTasks();
+
+    visible.forEach(task => {
+      const li = document.createElement('li');
+      li.className = 'task' + (task.done ? ' done' : '');
+      li.dataset.id = task.id;
+
+      li.innerHTML = `
+        <div class="check" role="checkbox" aria-checked="${task.done}" tabindex="0" aria-label="Mark task as ${task.done ? 'not done' : 'done'}">
+          <svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 6"/></svg>
+        </div>
+        <span class="task-text" tabindex="0" title="Double-click to edit"></span>
+        <button type="button" class="delete-btn" aria-label="Delete task">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+      `;
+
+      // Set text via textContent (not innerHTML) so typed tasks can never
+      // inject HTML/scripts into the page.
+      const textEl = li.querySelector('.task-text');
+      textEl.textContent = task.text;
+
+      const checkEl = li.querySelector('.check');
+      checkEl.addEventListener('click', () => toggleTask(task.id));
+      checkEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleTask(task.id);
+        }
+      });
+
+      // Inline editing: double-click (or Enter while focused) turns the
+      // label into a text input; Enter/blur saves, Escape cancels.
+      function startEdit() {
+        const editInput = document.createElement('input');
+        editInput.type = 'text';
+        editInput.className = 'task-edit-input';
+        editInput.value = task.text;
+        editInput.maxLength = 140;
+        textEl.replaceWith(editInput);
+        editInput.focus();
+        editInput.select();
+
+        function finish(save) {
+          if (save) editTask(task.id, editInput.value);
+          else render();
+        }
+        editInput.addEventListener('blur', () => finish(true));
+        editInput.addEventListener('keydown', e => {
+          if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+          if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+        });
+      }
+      textEl.addEventListener('dblclick', startEdit);
+      textEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter') startEdit();
+      });
+
+      li.querySelector('.delete-btn').addEventListener('click', () => deleteTask(task.id));
+
+      list.appendChild(li);
+    });
+
+    const remaining = tasks.filter(t => !t.done).length;
+    taskCountEl.textContent = remaining === 1 ? '1 task left' : `${remaining} tasks left`;
+
+    emptyState.classList.toggle('show', visible.length === 0);
+    emptyState.textContent = tasks.length === 0
+      ? 'Nothing here — add your first task above.'
+      : 'No tasks match this filter.';
+
+    clearBtn.style.visibility = tasks.some(t => t.done) ? 'visible' : 'hidden';
+
+    const percent = tasks.length ? Math.round(((tasks.length - remaining) / tasks.length) * 100) : 0;
+    progressBar.style.width = percent + '%';
+  }
+
+  /* ---------- Events ---------- */
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    addTask(input.value);
+    input.value = '';
+    input.focus();
+  });
+
+  clearBtn.addEventListener('click', clearCompleted);
+  downloadBtn.addEventListener('click', downloadList);
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filter = btn.dataset.filter;
+      render();
+    });
+  });
+
+})();
+</script>
+</body>
+</html>
